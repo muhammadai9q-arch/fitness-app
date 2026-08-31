@@ -1,195 +1,236 @@
+  import sqlite3
 import os
-from flask import Flask, jsonify, render_template_string
-from flask_sqlalchemy import SQLAlchemy
+from datetime import date
+from flask import Flask, request, jsonify, g, send_from_directory
+from seed_foods import FOODS
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "app.db")
+FRONTEND_DIR = BASE_DIR
 
-# إعداد قاعدة البيانات
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///fitness.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app = Flask(__name__, static_folder=None)
 
-db = SQLAlchemy(app)
 
-# نموذج جدول الأطعمة في قاعدة البيانات
-class Food(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    calories = db.Column(db.Float, nullable=False)
-    protein = db.Column(db.Float, nullable=False)
-    carbs = db.Column(db.Float, nullable=False)
-    fat = db.Column(db.Float, nullable=False)
-    serving_grams = db.Column(db.Float, default=100.0)
+def get_db():
+    if "db" not in g:
+        g.db = sqlite3.connect(DB_PATH)
+        g.db.row_factory = sqlite3.Row
+    return g.db
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "الاسم": self.name,
-            "السعرات الحرارية": self.calories,
-            "بروتين": self.protein,
-            "الكربوهيدرات": self.carbs,
-            "الدهون": self.fat,
-            "serving_grams": self.serving_grams
-        }
 
-# إنشاء الجداول عند البدء
-with app.app_context():
-    db.create_all()
+@app.teardown_appcontext
+def close_db(e=None):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
 
-# تصميم واجهة التطبيق التفاعلية
-HTML_TEMPLATE = '''
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق التغذية واللياقة</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #2e7d32;
-            --primary-light: #e8f5e9;
-            --primary-dark: #1b5e20;
-            --bg: #f8f9fa;
-            --card-bg: #ffffff;
-            --text-main: #212529;
-            --text-muted: #6c757d;
-            --border: #e9ecef;
-            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
-        body { background-color: var(--bg); color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
-        .app-container { width: 100%; max-width: 480px; background-color: var(--card-bg); min-height: 100vh; box-shadow: 0 0 25px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
-        header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 24px 20px 20px; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; }
-        .header-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-        .header-title h1 { font-size: 1.4rem; font-weight: 800; }
-        .search-container { position: relative; }
-        .search-input { width: 100%; padding: 14px 16px; border: none; border-radius: 14px; font-size: 0.95rem; outline: none; }
-        .stats-summary { display: flex; gap: 10px; padding: 16px 20px; background-color: var(--primary-light); margin: 16px 20px 0; border-radius: 16px; }
-        .stat-item { flex: 1; text-align: center; }
-        .stat-val { font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); }
-        .stat-label { font-size: 0.75rem; color: var(--text-muted); }
-        main { flex: 1; padding: 16px 20px; }
-        .food-list { display: flex; flex-direction: column; gap: 12px; }
-        .food-card { background-color: white; border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); display: flex; justify-content: space-between; align-items: center; }
-        .food-name { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; }
-        .food-serving { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; }
-        .macros-grid { display: flex; gap: 6px; }
-        .macro-chip { font-size: 0.75rem; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
-        .macro-p { background-color: #ffebee; color: #c62828; }
-        .macro-c { background-color: #e3f2fd; color: #1565c0; }
-        .macro-f { background-color: #fff8e1; color: #f57f17; }
-        .calories-badge { background-color: var(--primary-light); color: var(--primary-dark); padding: 10px 14px; border-radius: 14px; text-align: center; min-width: 80px; }
-        .cal-number { font-size: 1.1rem; font-weight: 800; }
-        .cal-unit { font-size: 0.7rem; }
-    </style>
-</head>
-<body>
-<div class="app-container">
-    <header>
-        <div class="header-title">
-            <h1>دليل التغذية 🥗</h1>
-            <span style="font-size:0.8rem; background:rgba(255,255,255,0.2); padding:4px 10px; border-radius:12px;">أونلاين</span>
-        </div>
-        <div class="search-container">
-            <input type="text" id="searchInput" class="search-input" placeholder="ابحث عن وجبة أو طعام..." oninput="handleSearch()">
-        </div>
-    </header>
 
-    <div class="stats-summary">
-        <div class="stat-item"><div class="stat-val" id="totalItems">0</div><div class="stat-label">عنصر غذائي</div></div>
-        <div class="stat-item"><div class="stat-val">100g</div><div class="stat-label">حجم الحصة</div></div>
-        <div class="stat-item"><div class="stat-val" style="color: var(--primary);">مضمون 100%</div><div class="stat-label">دقة البيانات</div></div>
-    </div>
+def init_db():
+    fresh = not os.path.exists(DB_PATH)
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS foods (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            calories REAL NOT NULL,
+            protein REAL NOT NULL,
+            carbs REAL NOT NULL,
+            fat REAL NOT NULL,
+            serving_grams REAL NOT NULL
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS log_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            food_id INTEGER,
+            custom_name TEXT,
+            grams REAL NOT NULL,
+            calories REAL NOT NULL,
+            protein REAL NOT NULL,
+            carbs REAL NOT NULL,
+            fat REAL NOT NULL,
+            entry_date TEXT NOT NULL,
+            FOREIGN KEY (food_id) REFERENCES foods (id)
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS profile (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            weight_kg REAL, height_cm REAL, age INTEGER,
+            gender TEXT, activity TEXT, goal TEXT,
+            target_calories REAL, target_protein REAL,
+            target_carbs REAL, target_fat REAL
+        )
+    """)
+    conn.commit()
+    if fresh:
+        cur.executemany(
+            "INSERT INTO foods (name, calories, protein, carbs, fat, serving_grams) VALUES (?, ?, ?, ?, ?, ?)",
+            FOODS,
+        )
+        conn.commit()
+    conn.close()
 
-    <main>
-        <div id="foodList" class="food-list">
-            <p style="text-align:center; padding:20px; color:#666;">جاري التحميل...</p>
-        </div>
-    </main>
-</div>
 
-<script>
-    let allFoods = [];
-    async function fetchFoods() {
-        try {
-            const res = await fetch('/api/foods');
-            allFoods = await res.json();
-            document.getElementById('totalItems').innerText = allFoods.length;
-            renderFoods(allFoods);
-        } catch (e) {
-            document.getElementById('foodList').innerHTML = '<p style="text-align:center; color:red;">تعذر جلب البيانات</p>';
-        }
+@app.route("/api/foods")
+def search_foods():
+    q = request.args.get("q", "").strip()
+    db = get_db()
+    if q:
+        rows = db.execute(
+            "SELECT * FROM foods WHERE name LIKE ? ORDER BY name LIMIT 30",
+            (f"%{q}%",),
+        ).fetchall()
+    else:
+        rows = db.execute("SELECT * FROM foods ORDER BY name LIMIT 30").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/log", methods=["GET"])
+def get_log():
+    d = request.args.get("date", date.today().isoformat())
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM log_entries WHERE entry_date = ? ORDER BY id DESC", (d,)
+    ).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/log", methods=["POST"])
+def add_log():
+    data = request.get_json()
+    db = get_db()
+    grams = float(data["grams"])
+    entry_date = data.get("date", date.today().isoformat())
+
+    if data.get("food_id"):
+        food = db.execute("SELECT * FROM foods WHERE id = ?", (data["food_id"],)).fetchone()
+        if not food:
+            return jsonify({"error": "food not found"}), 404
+        factor = grams / 100.0
+        calories = food["calories"] * factor
+        protein = food["protein"] * factor
+        carbs = food["carbs"] * factor
+        fat = food["fat"] * factor
+        name = food["name"]
+        food_id = food["id"]
+    else:
+        calories = float(data.get("calories", 0))
+        protein = float(data.get("protein", 0))
+        carbs = float(data.get("carbs", 0))
+        fat = float(data.get("fat", 0))
+        name = data.get("custom_name", "عنصر مخصص")
+        food_id = None
+
+    cur = db.execute(
+        """INSERT INTO log_entries
+           (food_id, custom_name, grams, calories, protein, carbs, fat, entry_date)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (food_id, name, grams, calories, protein, carbs, fat, entry_date),
+    )
+    db.commit()
+    row = db.execute("SELECT * FROM log_entries WHERE id = ?", (cur.lastrowid,)).fetchone()
+    return jsonify(dict(row)), 201
+
+
+@app.route("/api/log/<int:entry_id>", methods=["DELETE"])
+def delete_log(entry_id):
+    db = get_db()
+    db.execute("DELETE FROM log_entries WHERE id = ?", (entry_id,))
+    db.commit()
+    return "", 204
+
+
+@app.route("/api/summary")
+def summary():
+    d = request.args.get("date", date.today().isoformat())
+    db = get_db()
+    row = db.execute(
+        """SELECT COALESCE(SUM(calories),0) c, COALESCE(SUM(protein),0) p,
+                  COALESCE(SUM(carbs),0) cb, COALESCE(SUM(fat),0) f
+           FROM log_entries WHERE entry_date = ?""",
+        (d,),
+    ).fetchone()
+    prof = db.execute("SELECT * FROM profile WHERE id = 1").fetchone()
+    return jsonify({
+        "totals": {"calories": row["c"], "protein": row["p"], "carbs": row["cb"], "fat": row["f"]},
+        "targets": dict(prof) if prof else None,
+    })
+
+
+@app.route("/api/profile", methods=["GET"])
+def get_profile():
+    db = get_db()
+    row = db.execute("SELECT * FROM profile WHERE id = 1").fetchone()
+    return jsonify(dict(row) if row else None)
+
+
+@app.route("/api/profile", methods=["POST"])
+def set_profile():
+    data = request.get_json()
+    weight = float(data["weight_kg"])
+    height = float(data["height_cm"])
+    age = int(data["age"])
+    gender = data["gender"]  # 'male' or 'female'
+    activity = data["activity"]  # sedentary/light/moderate/active/very_active
+    goal = data["goal"]  # lose/maintain/gain
+
+    if gender == "male":
+        bmr = 10 * weight + 6.25 * height - 5 * age + 5
+    else:
+        bmr = 10 * weight + 6.25 * height - 5 * age - 161
+
+    activity_factors = {
+        "sedentary": 1.2, "light": 1.375, "moderate": 1.55,
+        "active": 1.725, "very_active": 1.9,
     }
+    tdee = bmr * activity_factors.get(activity, 1.2)
 
-    function renderFoods(foods) {
-        const container = document.getElementById('foodList');
-        if (foods.length === 0) {
-            container.innerHTML = '<p style="text-align:center; padding:20px;">لا توجد نتائج 🔍</p>';
-            return;
-        }
-        container.innerHTML = foods.map(food => `
-            <div class="food-card">
-                <div>
-                    <div class="food-name">${food['الاسم'] || 'طعام'}</div>
-                    <div class="food-serving">لكل ${food['serving_grams'] || 100} جرام</div>
-                    <div class="macros-grid">
-                        <span class="macro-chip macro-p">بروتين: ${food['بروتين']}g</span>
-                        <span class="macro-chip macro-c">كاربس: ${food['الكربوهيدرات']}g</span>
-                        <span class="macro-chip macro-f">دهون: ${food['الدهون']}g</span>
-                    </div>
-                </div>
-                <div class="calories-badge">
-                    <div class="cal-number">${food['السعرات الحرارية']}</div>
-                    <div class="cal-unit">سعرة</div>
-                </div>
-            </div>
-        `).join('');
-    }
+    if goal == "lose":
+        target_calories = tdee - 500
+    elif goal == "gain":
+        target_calories = tdee + 300
+    else:
+        target_calories = tdee
 
-    function handleSearch() {
-        const query = document.getElementById('searchInput').value.toLowerCase().trim();
-        renderFoods(allFoods.filter(f => (f['الاسم'] || '').toLowerCase().includes(query)));
-    }
+    target_protein = weight * (2.0 if goal == "gain" else 1.8)
+    target_fat = (target_calories * 0.25) / 9
+    target_carbs = (target_calories - (target_protein * 4) - (target_fat * 9)) / 4
 
-    fetchFoods();
-</script>
-</body>
-</html>
-'''
-
-# 1. الصفحة الرئيسية (عرض تطبيق الجوال)
-@app.route('/')
-def home():
-    return render_template_string(HTML_TEMPLATE)
-
-# 2. رابط جلب البيانات JSON
-@app.route('/api/foods', methods=['GET'])
-def get_foods():
-    foods = Food.query.all()
-    return jsonify([f.to_dict() for f in foods])
-
-# 3. رابط تعبئة الأطعمة في قاعدة البيانات
-@app.route('/api/seed', methods=['GET'])
-def seed():
-    if Food.query.first():
-        return jsonify({"message": "البيانات موجودة بالفعل!"})
-    
-    sample_foods = [
-        Food(name="صدر دجاج مطبوخ", calories=165, protein=31, carbs=0, fat=3.6),
-        Food(name="أرز أبيض مطبوخ", calories=130, protein=2.7, carbs=28, fat=0.3),
-        Food(name="بيض مسلوق", calories=155, protein=12.6, carbs=1.1, fat=10.6),
-        Food(name="شوفان", calories=389, protein=16.9, carbs=66.3, fat=6.9),
-        Food(name="تفاح", calories=52, protein=0.3, carbs=14, fat=0.2),
-        Food(name="زيت زيتون", calories=884, protein=0, carbs=0, fat=100),
-        Food(name="سمك سلمان مشوي", calories=206, protein=22, carbs=0, fat=12.3),
-        Food(name="موز", calories=89, protein=1.1, carbs=23, fat=0.3),
-    ]
-    db.session.bulk_save_objects(sample_foods)
-    db.session.commit()
-    return jsonify({"message": "تم إضافة الأطعمة الأولية بنجاح!"})
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    db = get_db()
+    db.execute(
+        """INSERT INTO profile (id, weight_kg, height_cm, age, gender, activity, goal,
+                                 target_calories, target_protein, target_carbs, target_fat)
+           VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             weight_kg=excluded.weight_kg, height_cm=excluded.height_cm, age=excluded.age,
+             gender=excluded.gender, activity=excluded.activity, goal=excluded.goal,
+             target_calories=excluded.target_calories, target_protein=excluded.target_protein,
+             target_carbs=excluded.target_carbs, target_fat=excluded.target_fat""",
+        (weight, height, age, gender, activity, goal,
+         target_calories, target_protein, target_carbs, target_fat),
+    )
+    db.commit()
+    row = db.execute("SELECT * FROM profile WHERE id = 1").fetchone()
+    return jsonify(dict(row))
 
 
-    
+@app.route("/")
+def index():
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/<path:path>")
+def static_files(path):
+    return send_from_directory(FRONTEND_DIR, path)
+
+
+if __name__ == "__main__":
+    init_db()
+    port = int(os.environ.get("PORT", 5050))
+    app.run(host="0.0.0.0", port=port, debug=False)
+else:
+    # When run under gunicorn (cloud hosting), init the DB at import time.
+    init_db()   
+
