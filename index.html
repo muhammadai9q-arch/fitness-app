@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق اللياقة البدنية</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            background: #f8f9fa;
+            margin-bottom: 8px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-right: 4px solid #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>جدول السعرات الحرارية</h1>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="ابحث عن طعام...">
+            <button onclick="searchFood()">بحث</button>
+        </div>
+        <ul id="foodList"></ul>
+    </div>
+
+    <script>
+        async function loadFoods(query = '') {
+            try {
+                const res = await fetch(`/api/foods${query ? '?q=' + encodeURIComponent(query) : ''}`);
+                const foods = await res.json();
+                const foodList = document.getElementById('foodList');
+                foodList.innerHTML = '';
+                
+                if (foods.length === 0) {
+                    foodList.innerHTML = '<li>لا توجد نتائج</li>';
+                    return;
+                }
+
+                foods.forEach(f => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${f.name}</strong> <span>${f.calories} سعرة / 100غ</span>`;
+                    foodList.appendChild(li);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function searchFood() {
+            const q = document.getElementById('searchInput').value;
+            loadFoods(q);
+        }
+
+        loadFoods();
+    </script>
+</body>
+</html>
