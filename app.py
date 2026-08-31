@@ -1,4 +1,4 @@
-  import sqlite3
+   import sqlite3
 import os
 from datetime import date
 from flask import Flask, request, jsonify, g, send_from_directory
@@ -232,5 +232,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=False)
 else:
     # When run under gunicorn (cloud hosting), init the DB at import time.
-    init_db()   
+    init_db()
 
