@@ -1,105 +1,653 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق اللياقة البدنية</title>
-    <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: #f4f6f9;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-        }
-        .search-box {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 16px;
-        }
-        button {
-            padding: 10px 15px;
-            background-color: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        li {
-            background: #f8f9fa;
-            margin-bottom: 8px;
-            padding: 10px 15px;
-            border-radius: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-right: 4px solid #27ae60;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الميزان — تتبع البروتين والسعرات</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#5F7136">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="الميزان">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F1EEE3;
+    --surface: #FFFFFF;
+    --ink: #262A1E;
+    --ink-soft: #63684F;
+    --olive: #5F7136;
+    --olive-dark: #465227;
+    --amber: #C7863B;
+    --amber-soft: #EFD9B8;
+    --carb: #7C93A8;
+    --fat: #B96B5A;
+    --line: #E1DCC9;
+    --radius: 14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Tajawal', sans-serif;
+    min-height:100vh;
+  }
+  .wrap{
+    max-width:640px;
+    margin:0 auto;
+    padding:20px 18px 100px;
+  }
+  header.top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:22px;
+    padding-top:6px;
+  }
+  header.top h1{
+    font-size:26px;
+    font-weight:900;
+    margin:0;
+    letter-spacing:-0.3px;
+  }
+  header.top h1 span{color:var(--olive);}
+  header.top .date-nav{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:14px;
+    color:var(--ink-soft);
+  }
+  header.top .date-nav button{
+    background:none;
+    border:none;
+    font-size:18px;
+    color:var(--olive);
+    cursor:pointer;
+    padding:2px 6px;
+  }
+
+  .summary-card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px;
+    margin-bottom:18px;
+  }
+  .cal-row{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    margin-bottom:16px;
+  }
+  .cal-row .big{
+    font-size:38px;
+    font-weight:900;
+    line-height:1;
+  }
+  .cal-row .big small{
+    font-size:15px;
+    font-weight:500;
+    color:var(--ink-soft);
+  }
+  .cal-row .remaining{
+    text-align:left;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .cal-row .remaining b{
+    display:block;
+    font-size:20px;
+    color:var(--ink);
+    font-weight:700;
+  }
+  .cal-track{
+    height:10px;
+    border-radius:6px;
+    background:var(--amber-soft);
+    overflow:hidden;
+    margin-bottom:20px;
+  }
+  .cal-track > div{
+    height:100%;
+    background:var(--amber);
+    border-radius:6px;
+    transition:width .4s ease;
+  }
+  .macro-bars{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .macro-bar-row{
+    display:grid;
+    grid-template-columns:60px 1fr 90px;
+    align-items:center;
+    gap:10px;
+    font-size:13px;
+  }
+  .macro-bar-row .label{
+    font-weight:700;
+    color:var(--ink);
+  }
+  .macro-bar-row .label small{
+    display:block;
+    font-weight:400;
+    color:var(--ink-soft);
+    font-size:11px;
+  }
+  .macro-track{
+    height:8px;
+    border-radius:5px;
+    background:var(--line);
+    overflow:hidden;
+  }
+  .macro-track > div{border-radius:5px; height:100%; transition:width .4s ease;}
+  .macro-bar-row .vals{
+    text-align:left;
+    color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;
+  }
+  .macro-bar-row.protein .macro-track>div{background:var(--olive);}
+  .macro-bar-row.carbs .macro-track>div{background:var(--carb);}
+  .macro-bar-row.fat .macro-track>div{background:var(--fat);}
+
+  .no-profile-hint{
+    font-size:13px;
+    color:var(--ink-soft);
+    background:var(--amber-soft);
+    border-radius:10px;
+    padding:10px 14px;
+    margin-bottom:18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+  }
+  .no-profile-hint button{
+    background:var(--olive);
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:6px 12px;
+    font-family:inherit;
+    font-size:13px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+
+  .search-box{
+    position:relative;
+    margin-bottom:14px;
+  }
+  .search-box input{
+    width:100%;
+    padding:13px 16px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:var(--surface);
+    font-family:inherit;
+    font-size:15px;
+    color:var(--ink);
+  }
+  .search-box input:focus{
+    outline:2px solid var(--olive);
+    outline-offset:1px;
+  }
+  .results{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    margin-top:6px;
+    overflow:hidden;
+    max-height:280px;
+    overflow-y:auto;
+  }
+  .result-item{
+    padding:12px 16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    cursor:pointer;
+    border-bottom:1px solid var(--line);
+    gap:8px;
+  }
+  .result-item:last-child{border-bottom:none;}
+  .result-item:hover{background:var(--bg);}
+  .result-item .rname{font-weight:500; font-size:14px;}
+  .result-item .rmeta{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+
+  h2.section-title{
+    font-size:15px;
+    font-weight:700;
+    color:var(--ink-soft);
+    margin:26px 0 10px;
+  }
+
+  .log-item{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:12px 16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:8px;
+  }
+  .log-item .lname{font-weight:700; font-size:14px;}
+  .log-item .lmeta{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .log-item .lvals{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .log-item .kcal{font-weight:700; font-size:14px; color:var(--amber);}
+  .log-item .del{
+    background:none;
+    border:none;
+    color:#B4453A;
+    font-size:18px;
+    cursor:pointer;
+    padding:2px 4px;
+  }
+  .empty-log{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13px;
+    padding:24px 10px;
+  }
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(38,42,30,0.45);
+    display:flex; align-items:flex-end; justify-content:center;
+    z-index:50;
+  }
+  .modal-overlay.hidden{display:none;}
+  .modal{
+    background:var(--surface);
+    width:100%;
+    max-width:640px;
+    border-radius:20px 20px 0 0;
+    padding:22px 20px 26px;
+    max-height:88vh;
+    overflow-y:auto;
+  }
+  .modal h3{margin:0 0 16px; font-size:18px; font-weight:900;}
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+    font-weight:500;
+  }
+  .field input, .field select{
+    width:100%;
+    padding:11px 14px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    font-family:inherit;
+    font-size:14px;
+    background:var(--bg);
+    color:var(--ink);
+  }
+  .field-row{display:flex; gap:10px;}
+  .field-row .field{flex:1;}
+  .modal-actions{
+    display:flex;
+    gap:10px;
+    margin-top:18px;
+  }
+  .btn{
+    flex:1;
+    padding:13px;
+    border-radius:10px;
+    border:none;
+    font-family:inherit;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .btn-primary{background:var(--olive); color:#fff;}
+  .btn-secondary{background:var(--bg); color:var(--ink);}
+  .food-preview{
+    background:var(--bg);
+    border-radius:10px;
+    padding:12px 14px;
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-bottom:14px;
+    display:flex;
+    justify-content:space-between;
+  }
+
+  .fab{
+    position:fixed;
+    bottom:22px;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--olive-dark);
+    color:#fff;
+    border:none;
+    border-radius:30px;
+    padding:15px 30px;
+    font-family:inherit;
+    font-size:15px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    cursor:pointer;
+    box-shadow:0 6px 18px rgba(70,82,39,0.35);
+    max-width:600px;
+    width:calc(100% - 36px);
+    justify-content:center;
+  }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>جدول السعرات الحرارية</h1>
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="ابحث عن طعام...">
-            <button onclick="searchFood()">بحث</button>
-        </div>
-        <ul id="foodList"></ul>
+<div class="wrap">
+  <header class="top">
+    <h1>الميزان<span>.</span></h1>
+    <div class="date-nav">
+      <button id="prevDay">‹</button>
+      <span id="dateLabel">اليوم</span>
+      <button id="nextDay">›</button>
     </div>
+  </header>
 
-    <script>
-        async function loadFoods(query = '') {
-            try {
-                const res = await fetch(`/api/foods${query ? '?q=' + encodeURIComponent(query) : ''}`);
-                const foods = await res.json();
-                const foodList = document.getElementById('foodList');
-                foodList.innerHTML = '';
-                
-                if (foods.length === 0) {
-                    foodList.innerHTML = '<li>لا توجد نتائج</li>';
-                    return;
-                }
+  <div id="noProfileHint" class="no-profile-hint" style="display:none;">
+    <span>ما حددت أهدافك اليومية بعد</span>
+    <button onclick="openProfileModal()">حدد الهدف</button>
+  </div>
 
-                foods.forEach(f => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<strong>${f.name}</strong> <span>${f.calories} سعرة / 100غ</span>`;
-                    foodList.appendChild(li);
-                });
-            } catch (err) {
-                console.error(err);
-            }
-        }
+  <div class="summary-card">
+    <div class="cal-row">
+      <div class="big" id="calConsumed">0<small> / <span id="calTarget">—</span> سعرة</small></div>
+      <div class="remaining">متبقي<b id="calRemaining">—</b></div>
+    </div>
+    <div class="cal-track"><div id="calBar" style="width:0%"></div></div>
+    <div class="macro-bars">
+      <div class="macro-bar-row protein">
+        <div class="label">بروتين<small>غرام</small></div>
+        <div class="macro-track"><div id="proteinBar" style="width:0%"></div></div>
+        <div class="vals"><span id="proteinVals">0 / 0</span></div>
+      </div>
+      <div class="macro-bar-row carbs">
+        <div class="label">كارب<small>غرام</small></div>
+        <div class="macro-track"><div id="carbsBar" style="width:0%"></div></div>
+        <div class="vals"><span id="carbsVals">0 / 0</span></div>
+      </div>
+      <div class="macro-bar-row fat">
+        <div class="label">دهون<small>غرام</small></div>
+        <div class="macro-track"><div id="fatBar" style="width:0%"></div></div>
+        <div class="vals"><span id="fatVals">0 / 0</span></div>
+      </div>
+    </div>
+  </div>
 
-        function searchFood() {
-            const q = document.getElementById('searchInput').value;
-            loadFoods(q);
-        }
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="ابحث عن أكلة... كبسة، دجاج، تمر" autocomplete="off">
+    <div class="results" id="searchResults" style="display:none;"></div>
+  </div>
 
-        loadFoods();
-    </script>
+  <h2 class="section-title">وجبات اليوم</h2>
+  <div id="logList"></div>
+</div>
+
+<button class="fab" onclick="openProfileModal()" id="profileFab">⚙ إعداداتي</button>
+
+<!-- Add food quantity modal -->
+<div class="modal-overlay hidden" id="qtyModalOverlay">
+  <div class="modal">
+    <h3 id="qtyModalTitle">إضافة</h3>
+    <div class="food-preview" id="qtyPreview"></div>
+    <div class="field">
+      <label>الكمية (غرام)</label>
+      <input type="number" id="qtyGrams" value="100" min="1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeQtyModal()">إلغاء</button>
+      <button class="btn btn-primary" onclick="confirmAddLog()">إضافة للسجل</button>
+    </div>
+  </div>
+</div>
+
+<!-- Profile modal -->
+<div class="modal-overlay hidden" id="profileModalOverlay">
+  <div class="modal">
+    <h3>بياناتك وهدفك</h3>
+    <div class="field-row">
+      <div class="field">
+        <label>الوزن (كغم)</label>
+        <input type="number" id="pWeight" value="70">
+      </div>
+      <div class="field">
+        <label>الطول (سم)</label>
+        <input type="number" id="pHeight" value="175">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>العمر</label>
+        <input type="number" id="pAge" value="25">
+      </div>
+      <div class="field">
+        <label>الجنس</label>
+        <select id="pGender">
+          <option value="male">ذكر</option>
+          <option value="female">أنثى</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>مستوى النشاط</label>
+      <select id="pActivity">
+        <option value="sedentary">قليل الحركة (عمل مكتبي)</option>
+        <option value="light">نشاط خفيف (1-3 أيام تمرين)</option>
+        <option value="moderate">نشاط متوسط (3-5 أيام)</option>
+        <option value="active">نشاط عالي (6-7 أيام)</option>
+        <option value="very_active">نشاط عالي جداً (تمرين يومي مكثف)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>هدفك</label>
+      <select id="pGoal">
+        <option value="lose">نزول وزن</option>
+        <option value="maintain">محافظة على الوزن</option>
+        <option value="gain">زيادة عضل</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeProfileModal()">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveProfile()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let currentDate = new Date();
+let selectedFood = null;
+
+function fmtDate(d){
+  return d.toISOString().slice(0,10);
+}
+function dateLabelText(d){
+  const today = new Date();
+  const diff = Math.round((new Date(fmtDate(today)) - new Date(fmtDate(d))) / 86400000);
+  if(diff === 0) return 'اليوم';
+  if(diff === 1) return 'أمس';
+  if(diff === -1) return 'غداً';
+  return d.toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
+}
+
+document.getElementById('prevDay').onclick = () => { currentDate.setDate(currentDate.getDate()-1); refresh(); };
+document.getElementById('nextDay').onclick = () => { currentDate.setDate(currentDate.getDate()+1); refresh(); };
+
+async function refresh(){
+  document.getElementById('dateLabel').textContent = dateLabelText(currentDate);
+  const d = fmtDate(currentDate);
+  const [summary, log] = await Promise.all([
+    fetch(`${API}/api/summary?date=${d}`).then(r=>r.json()),
+    fetch(`${API}/api/log?date=${d}`).then(r=>r.json()),
+  ]);
+  renderSummary(summary);
+  renderLog(log);
+}
+
+function renderSummary(s){
+  const t = s.totals;
+  const targets = s.targets;
+  document.getElementById('noProfileHint').style.display = targets ? 'none' : 'flex';
+
+  const calTarget = targets ? Math.round(targets.target_calories) : null;
+  document.getElementById('calConsumed').innerHTML =
+    `${Math.round(t.calories)}<small> / ${calTarget ?? '—'} سعرة</small>`;
+  const remaining = calTarget ? Math.round(calTarget - t.calories) : null;
+  document.getElementById('calRemaining').textContent = remaining !== null ? remaining : '—';
+  document.getElementById('calBar').style.width = calTarget ? Math.min(100, (t.calories/calTarget)*100)+'%' : '0%';
+
+  setMacroBar('protein', t.protein, targets?.target_protein);
+  setMacroBar('carbs', t.carbs, targets?.target_carbs);
+  setMacroBar('fat', t.fat, targets?.target_fat);
+}
+
+function setMacroBar(key, val, target){
+  const bar = document.getElementById(key+'Bar');
+  const valsEl = document.getElementById(key+'Vals');
+  const t = target ? Math.round(target) : null;
+  bar.style.width = t ? Math.min(100, (val/t)*100)+'%' : '0%';
+  valsEl.textContent = `${Math.round(val)} / ${t ?? '—'}`;
+}
+
+function renderLog(entries){
+  const list = document.getElementById('logList');
+  if(entries.length === 0){
+    list.innerHTML = '<div class="empty-log">ما فيه وجبات مسجلة — ابحث عن أكلة وأضفها</div>';
+    return;
+  }
+  list.innerHTML = entries.map(e => `
+    <div class="log-item">
+      <div>
+        <div class="lname">${e.custom_name}</div>
+        <div class="lmeta">${Math.round(e.grams)} غم · بروتين ${Math.round(e.protein)}غم</div>
+      </div>
+      <div class="lvals">
+        <span class="kcal">${Math.round(e.calories)} سعرة</span>
+        <button class="del" onclick="deleteEntry(${e.id})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deleteEntry(id){
+  await fetch(`${API}/api/log/${id}`, {method:'DELETE'});
+  refresh();
+}
+
+// Search
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+let searchTimeout;
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  const q = searchInput.value.trim();
+  searchTimeout = setTimeout(async () => {
+    const res = await fetch(`${API}/api/foods?q=${encodeURIComponent(q)}`).then(r=>r.json());
+    if(res.length === 0){
+      searchResults.style.display = 'none';
+      return;
+    }
+    searchResults.innerHTML = res.map(f => `
+      <div class="result-item" onclick='pickFood(${JSON.stringify(f).replace(/'/g,"&apos;")})'>
+        <span class="rname">${f.name}</span>
+        <span class="rmeta">${Math.round(f.calories)} سعرة / 100غم</span>
+      </div>
+    `).join('');
+    searchResults.style.display = 'block';
+  }, 200);
+});
+
+function pickFood(food){
+  selectedFood = food;
+  document.getElementById('qtyModalTitle').textContent = food.name;
+  document.getElementById('qtyPreview').innerHTML =
+    `<span>لكل 100غم</span><span>${Math.round(food.calories)} سعرة · بروتين ${food.protein}غم</span>`;
+  document.getElementById('qtyGrams').value = food.serving_grams || 100;
+  document.getElementById('qtyModalOverlay').classList.remove('hidden');
+  searchResults.style.display = 'none';
+  searchInput.value = '';
+}
+
+function closeQtyModal(){
+  document.getElementById('qtyModalOverlay').classList.add('hidden');
+  selectedFood = null;
+}
+
+async function confirmAddLog(){
+  const grams = parseFloat(document.getElementById('qtyGrams').value);
+  if(!selectedFood || !grams || grams <= 0) return;
+  await fetch(`${API}/api/log`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({food_id: selectedFood.id, grams, date: fmtDate(currentDate)})
+  });
+  closeQtyModal();
+  refresh();
+}
+
+// Profile
+function openProfileModal(){
+  document.getElementById('profileModalOverlay').classList.remove('hidden');
+}
+function closeProfileModal(){
+  document.getElementById('profileModalOverlay').classList.add('hidden');
+}
+async function saveProfile(){
+  const payload = {
+    weight_kg: parseFloat(document.getElementById('pWeight').value),
+    height_cm: parseFloat(document.getElementById('pHeight').value),
+    age: parseInt(document.getElementById('pAge').value),
+    gender: document.getElementById('pGender').value,
+    activity: document.getElementById('pActivity').value,
+    goal: document.getElementById('pGoal').value,
+  };
+  await fetch(`${API}/api/profile`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  closeProfileModal();
+  refresh();
+}
+
+async function loadProfileIntoForm(){
+  const p = await fetch(`${API}/api/profile`).then(r=>r.json());
+  if(p){
+    document.getElementById('pWeight').value = p.weight_kg;
+    document.getElementById('pHeight').value = p.height_cm;
+    document.getElementById('pAge').value = p.age;
+    document.getElementById('pGender').value = p.gender;
+    document.getElementById('pActivity').value = p.activity;
+    document.getElementById('pGoal').value = p.goal;
+  }
+}
+
+loadProfileIntoForm();
+refresh();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(console.error);
+  });
+}
+</script>
 </body>
 </html>
